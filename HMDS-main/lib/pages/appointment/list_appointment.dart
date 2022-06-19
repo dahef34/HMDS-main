@@ -9,35 +9,81 @@ import 'package:hmd_system/pages/profile/Userprofile.dart';
 class ListApt extends StatelessWidget {
   ListApt({Key? key}) : super(key: key);
 
-  //I'll propose some changes here.  I can't see your firebase obviously so I'm guessing on some things, but I think this will
-  //get you what you want or at least closte.  It is probably easier to store the User's uid inside the appointment 
-  // and then you don't have to retrieve the array before querying for the appointments.
-  //  I changed the class name to Upper camel case to match the dart style guide and the file name to match as well.
-  //  To each their own really, but my linter won't stop bugging if I don't.
-
   final User? user = FirebaseAuth.instance
       .currentUser; // I would use a StateNotifier here and store this globally.  Then you could just take a dependency on it here.
   late final Muser loggedInUser;
   final List<Appointment> aptList = [];
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  Future<List<Appointment>?> loadList() async {
-   await FirebaseFirestore.instance
+  Future<Muser> getUser() async {
+    if (loggedInUser.uid == user?.uid) {return loggedInUser;}
+    FirebaseAuth.instance.authStateChanges().listen((user) async {
+        final snapshot = await FirebaseFirestore.instance
         .collection("mUsers")
         .doc(user!.uid)
-        .get()
-        .then((snapshot) async {
-      loggedInUser = Muser.fromMap(snapshot.data());
-      for (var apts in snapshot.data()?["appointment"]) {
+        .get();
+    loggedInUser = Muser.fromMap(snapshot.data());
+     });
+    return loggedInUser;
+  }
+
+  Future<List<Appointment>?> loadList() async {
+     final List<String>? apts = await getUser().then((value) => value.appointment as List<String>);
+     if (apts != null && apts.isNotEmpty) {
+      for (final String apt in apts) {
+        aptList.clear();
         var _appointment = await FirebaseFirestore.instance
             .collection("appointment")
-            .doc(apts)
+            .doc(apt)
             .get();
 
         aptList.add(Appointment.fromMap(_appointment.data()));
       }
+      return aptList;
+     } else {
+       return null;
+     }
+    }
+
+  Future<List<Appointment>?> addAppointment(Appointment apt) async {
+    aptList.add(apt);
+    List<String?> apptUids = aptList.map((e) => e.uid).toList();
+    await FirebaseFirestore.instance
+        .collection("mUsers")
+        .doc('${loggedInUser.uid}')
+        .set({"appointment": apptUids}).then((snapshot) async {
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(apt.uid)
+          .set(apt.toMap());
     });
-    return aptList;
+    return loadList();
+  }
+
+  Future<List<Appointment>?> updateAppointment(Appointment apt) async {
+
+    // You can use the update method here is you want, but you wouldn't pass in an Appoint
+    // You would pass in the individial values that you want to update and
+    // set individual fields in a map.  It's easier just to pass in the whole appointment
+    // and use set to override the previous appointment.
+
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(apt.uid)
+          .set(apt.toMap());
+
+    return loadList();
+  }
+
+  
+  Future<List<Appointment>?> deleteAppointment(Appointment apt) async {
+
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(apt.uid)
+          .delete();
+
+    return loadList();
   }
 
   @override
