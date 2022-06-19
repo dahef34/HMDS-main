@@ -28,7 +28,7 @@ class ListApt extends StatelessWidget {
   }
 
   Future<List<Appointment>?> loadList() async {
-     final List<String>? apts = await getUser().then((value) => value.appointment as List<String>);
+     final List<String>? apts = await getUser().then((value) => value.appointment as List<String>?);
      if (apts != null && apts.isNotEmpty) {
       for (final String apt in apts) {
         aptList.clear();
