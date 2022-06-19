@@ -30,8 +30,8 @@ class ListApt extends StatelessWidget {
   Future<List<Appointment>?> loadList() async {
      final List<String>? apts = await getUser().then((value) => value.appointment as List<String>?);
      if (apts != null && apts.isNotEmpty) {
+      aptList.clear();
       for (final String apt in apts) {
-        aptList.clear();
         var _appointment = await FirebaseFirestore.instance
             .collection("appointment")
             .doc(apt)
